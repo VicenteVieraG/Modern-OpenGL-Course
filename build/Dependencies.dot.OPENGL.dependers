@@ -1,8 +1,0 @@
-digraph "OPENGL" {
-node [
-  fontsize = "12"
-];
-    "node0" [ label = "OPENGL", shape = egg ];
-    "node0" [ label = "OPENGL", shape = egg ];
-    "node0" -> "node0"  // OPENGL -> OPENGL
-}

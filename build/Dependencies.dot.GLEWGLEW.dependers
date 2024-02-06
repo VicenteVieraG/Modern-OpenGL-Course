@@ -1,8 +1,0 @@
-digraph "GLEW::GLEW" {
-node [
-  fontsize = "12"
-];
-    "node1" [ label = "GLEW::GLEW", shape = doubleoctagon ];
-    "node0" [ label = "OPENGL", shape = egg ];
-    "node0" -> "node1" [ style = dotted ] // OPENGL -> GLEW::GLEW
-}
