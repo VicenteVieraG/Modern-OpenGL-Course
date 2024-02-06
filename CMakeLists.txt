@@ -1,5 +1,6 @@
 cmake_minimum_required(VERSION 3.24.1)
 
+# Path to package manager: vcpkg
 set(CMAKE_TOOLCHAIN_FILE C:/Users/plant/scoop/apps/vcpkg/current/scripts/buildsystems/vcpkg.cmake)
 project(OPENGL VERSION 0.0.0 LANGUAGES C CXX)
 
@@ -9,7 +10,6 @@ set(CMAKE_CXX_EXTENSIONS OFF)
 set(CMAKE_CXX_COMPILER C:\\mingw64\\bin\\clang++)
 set(CMAKE_RUNTIME_OUTPUT_DIRECTORY ${CMAKE_BINARY_DIR}\\bin)
 
-# Path to package manager: vcpkg
 add_subdirectory(config)
 add_subdirectory(external)
 add_subdirectory(src)
