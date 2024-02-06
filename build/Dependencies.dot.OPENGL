@@ -1,0 +1,8 @@
+digraph "OPENGL" {
+node [
+  fontsize = "12"
+];
+    "node0" [ label = "OPENGL", shape = egg ];
+    "node4" [ label = "glfw", shape = doubleoctagon ];
+    "node0" -> "node4" [ style = dotted ] // OPENGL -> glfw
+}
