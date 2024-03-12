@@ -1,13 +1,12 @@
-#include <stdio.h>
+#include <iostream>
 #include <string.h>
 
-#include <GL\glew.h>
-#include <GLFW\glfw3.h>
+#include <GL/glew.h>
+#include <GLFW/glfw3.h>
 
-// Window dimensions
-const GLint WIDTH = 800, HEIGHT = 600;
-
-GLuint VBO, VAO, shader;
+void CreateTriangle(GLuint& VAO, GLuint& VBO);
+void CompileShaders(GLuint& shader);
+void AddShader(GLuint& theProgram, const char* shaderCode, GLenum shaderType);
 
 // Vertex Shader code
 static const char* vShader = "                                                \n\
@@ -31,20 +30,106 @@ void main()                                                                   \n
     colour = vec4(1.0, 0.0, 0.0, 1.0);                                         \n\
 }";
 
-void CreateTriangle()
-{
-	GLfloat vertices[] = {
-		-1.0f, -1.0f, 0.0f,
-		1.0f, -1.0f, 0.0f,
-		0.0f, 1.0f, 0.0f
-	};
+int main(int argc, char** argv){
+    const GLint WIDTH = 800;
+    const GLint HEIGHT = 600;
 
-	glGenVertexArrays(1, &VAO);
-	glBindVertexArray(VAO);
+    GLuint VAO;
+    GLuint VBO;
+    GLuint shader;
+    int bufferWidth;
+    int bufferHeight;
 
-	glGenBuffers(1, &VBO);
-	glBindBuffer(GL_ARRAY_BUFFER, VBO);
-	glBufferData(GL_ARRAY_BUFFER, sizeof(vertices), vertices, GL_STATIC_DRAW);
+    // Initialise GLFW
+    if(!glfwInit()){
+        std::cerr<<"GLFW initialisation failed!"<<std::endl;
+        glfwTerminate();
+        return 1;
+    }
+
+    // Setup GLFW window properties
+    // OpenGL version
+    // Core Profile means no backward compatibility for OpenGL
+    glfwWindowHint(GLFW_CONTEXT_VERSION_MAJOR, 3);
+    glfwWindowHint(GLFW_CONTEXT_VERSION_MINOR, 3);
+    glfwWindowHint(GLFW_OPENGL_PROFILE, GLFW_OPENGL_CORE_PROFILE);
+    glfwWindowHint(GLFW_OPENGL_FORWARD_COMPAT, GL_TRUE);
+
+    // Create the window object
+    GLFWwindow* mainWindow = glfwCreateWindow(WIDTH, HEIGHT, "Test window", NULL, NULL);
+    if(!mainWindow){
+        std::cerr<<"GLFW window creation failed!"<<std::endl;
+        glfwTerminate();
+        return 1;
+    }
+
+    // Get Buffer size information
+    glfwGetFramebufferSize(mainWindow, &bufferWidth, &bufferHeight);
+
+    // Set the OpenGL context for GLEW to use
+    glfwMakeContextCurrent(mainWindow);
+
+    // Allow modern extension features
+    glewExperimental = GL_TRUE;
+
+    // Initialize GLEW
+    if(glewInit() != GLEW_OK){
+        std::cerr<<"GLEW initialisation failed!"<<std::endl;
+        glfwDestroyWindow(mainWindow);
+        glfwTerminate();
+        return 1;
+    }
+
+    // Setup the Viewport size
+    // The Viewport is the part of the screen on wich OpenGL will draw
+    glViewport(0, 0, bufferWidth, bufferHeight);
+
+    // Configuration Process
+    CreateTriangle(VAO, VBO);
+    CompileShaders(shader);
+
+    // Main loop
+    do{
+        // Get and handle input events
+        // This handle every event in the window
+        glfwPollEvents();
+
+        // Clear window
+        glClearColor(0.0f, 0.0f, 0.0f, 1.0f);
+        glClear(GL_COLOR_BUFFER_BIT);
+
+        // The drawing
+        glUseProgram(shader);
+        glBindVertexArray(VAO);
+        glDrawArrays(GL_TRIANGLES, 0, 3);
+
+        glBindVertexArray(0);
+        glUseProgram(0);
+
+        glfwSwapBuffers(mainWindow);
+
+    }while(!glfwWindowShouldClose(mainWindow));
+
+    return 0;
+}
+
+void CreateTriangle(GLuint& VAO, GLuint& VBO){
+    // Triangle vertices
+    GLfloat vertices[] = {
+        -1.0f, -1.0f, 0.0f,
+        1.0f, -1.0f, 0.0f,
+        0.0f, 1.0f, 0.0f
+    };
+
+    // Create the VAO and VBO
+    glGenVertexArrays(1, &VAO);
+    glBindVertexArray(VAO);
+
+    glGenBuffers(1, &VBO);
+    glBindBuffer(GL_ARRAY_BUFFER, VBO);
+
+    // Set the value for the VBO
+    glBufferData(GL_ARRAY_BUFFER, sizeof(vertices), vertices, GL_STATIC_DRAW);
 
 	glVertexAttribPointer(0, 3, GL_FLOAT, GL_FALSE, 0, 0);
 	glEnableVertexAttribArray(0);
@@ -54,9 +139,48 @@ void CreateTriangle()
 	glBindVertexArray(0);
 }
 
-void AddShader(GLuint theProgram, const char* shaderCode, GLenum shaderType)
-{
-	GLuint theShader = glCreateShader(shaderType);
+void CompileShaders(GLuint& shader){
+    // Actually store the shader program into the GPU
+    shader = glCreateProgram();
+
+    if(!shader){
+        std::cerr<<"Error Creating Shader Program!"<<std::endl;
+        return;
+    }
+
+    AddShader(shader, vShader, GL_VERTEX_SHADER);
+    AddShader(shader, fShader, GL_FRAGMENT_SHADER);
+
+    // Debug variables.
+    // This section handles the validation and debug configuration for
+    // the shader program.
+    // Because the shader program is stored, compiled and linked in the GPU
+    // the debug process is hard without this configuration.
+    GLint result = 0;
+    GLchar eLog[1024] = {0};
+
+    // This creates the actual executables in the GPU, links all the program
+    // together and makes sure everything is working correctly
+    glLinkProgram(shader);
+
+    glGetProgramiv(shader, GL_LINK_STATUS, &result);
+    if(!result){
+        glGetProgramInfoLog(shader, sizeof(eLog), NULL, eLog);
+        std::cerr<<"Error Linking Program: "<<eLog<<std::endl;
+        return;
+    }
+
+    glValidateProgram(shader);
+    glGetProgramiv(shader, GL_VALIDATE_STATUS, &result);
+    if(!result){
+        glGetProgramInfoLog(shader, sizeof(eLog), NULL, eLog);
+        std::cerr<<"Error Validating Program: "<<eLog<<std::endl;
+        return;
+    }
+}
+
+void AddShader(GLuint& theProgram, const char* shaderCode, GLenum shaderType){
+    GLuint theShader = glCreateShader(shaderType);
 
 	const GLchar* theCode[1];
 	theCode[0] = shaderCode;
@@ -70,125 +194,13 @@ void AddShader(GLuint theProgram, const char* shaderCode, GLenum shaderType)
 	GLint result = 0;
 	GLchar eLog[1024] = { 0 };
 
-	glGetShaderiv(theShader, GL_COMPILE_STATUS, &result);
-	if (!result) 
-	{
-		glGetShaderInfoLog(theShader, 1024, NULL, eLog);
-		fprintf(stderr, "Error compiling the %d shader: '%s'\n", shaderType, eLog);
-		return;
-	}
+    glGetShaderiv(theShader, GL_COMPILE_STATUS, &result);
+    if(!result){
+        glGetShaderInfoLog(theShader, sizeof(eLog), NULL, eLog);
+        std::cerr<<"Error Compiling the "<<shaderType<<" Shader: "<<eLog<<std::endl;
+        return;
+    }
 
 	glAttachShader(theProgram, theShader);
 }
 
-void CompileShaders()
-{
-	shader = glCreateProgram();
-
-	if (!shader) 
-	{
-		printf("Failed to create shader\n");
-		return;
-	}
-
-	AddShader(shader, vShader, GL_VERTEX_SHADER);
-	AddShader(shader, fShader, GL_FRAGMENT_SHADER);
-
-	GLint result = 0;
-	GLchar eLog[1024] = { 0 };
-
-	glLinkProgram(shader);
-	glGetProgramiv(shader, GL_LINK_STATUS, &result);
-	if (!result) 
-	{
-		glGetProgramInfoLog(shader, sizeof(eLog), NULL, eLog);
-		printf("Error linking program: '%s'\n", eLog);
-		return;
-	}
-
-	glValidateProgram(shader);
-	glGetProgramiv(shader, GL_VALIDATE_STATUS, &result);
-	if (!result) 
-	{
-		glGetProgramInfoLog(shader, sizeof(eLog), NULL, eLog);
-		printf("Error validating program: '%s'\n", eLog);
-		return;
-	}
-
-}
-
-int main()
-{
-	// Initialise GLFW
-	if (!glfwInit())
-	{
-		printf("GLFW initialisation failed!");
-		glfwTerminate();
-		return 1;
-	}
-
-	// Setup GLFW window properties
-	// OpenGL version
-	glfwWindowHint(GLFW_CONTEXT_VERSION_MAJOR, 3);
-	glfwWindowHint(GLFW_CONTEXT_VERSION_MINOR, 3);
-	// Core Profile
-	glfwWindowHint(GLFW_OPENGL_PROFILE, GLFW_OPENGL_CORE_PROFILE);
-	// Allow Forward Compatbility
-	glfwWindowHint(GLFW_OPENGL_FORWARD_COMPAT, GL_TRUE);
-
-	// Create the window
-	GLFWwindow *mainWindow = glfwCreateWindow(WIDTH, HEIGHT, "Test Window", NULL, NULL);
-	if (!mainWindow)
-	{
-		printf("GLFW window creation failed!");
-		glfwTerminate();
-		return 1;
-	}
-
-	// Get Buffer Size information
-	int bufferWidth, bufferHeight;
-	glfwGetFramebufferSize(mainWindow, &bufferWidth, &bufferHeight);
-
-	// Set context for GLEW to use
-	glfwMakeContextCurrent(mainWindow);
-
-	// Allow modern extension features
-	glewExperimental = GL_TRUE;
-
-	if (glewInit() != GLEW_OK)
-	{
-		printf("GLEW initialisation failed!");
-		glfwDestroyWindow(mainWindow);
-		glfwTerminate();
-		return 1;
-	}
-
-	// Setup Viewport size
-	glViewport(0, 0, bufferWidth, bufferHeight);
-
-	CreateTriangle();
-	CompileShaders();
-
-	// Loop until window closed
-	while (!glfwWindowShouldClose(mainWindow))
-	{
-		// Get + Handle user input events
-		glfwPollEvents();
-
-		// Clear window
-		glClearColor(0.0f, 0.0f, 0.0f, 1.0f);
-		glClear(GL_COLOR_BUFFER_BIT);
-
-		glUseProgram(shader);
-
-		glBindVertexArray(VAO);
-		glDrawArrays(GL_TRIANGLES, 0, 3);
-		glBindVertexArray(0);
-
-		glUseProgram(0);
-
-		glfwSwapBuffers(mainWindow);
-	}
-
-	return 0;
-}
